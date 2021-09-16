@@ -18,6 +18,6 @@ To use this script add the "Moving Raw Resources To Refinarys.cs" file into your
     
   3. A cool thing to add would be connecting an ejector to your conveyor belt system and naming it "Base 1 Ejector 1"
   
-     - This will make it so all the useless gravel automatically gets ejected out of your inverntories so that you don't have to deal with them ;)
+     - This will make it so all the useless gravel automatically gets ejected out of your inventories so that you don't have to deal with them ;)
      
 ### Hope you enjoy!
