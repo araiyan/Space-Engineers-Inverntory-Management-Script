@@ -1,5 +1,5 @@
 # Space-Engineers-Inverntory-Management-Script
-This script helps manage inventories for space engineers
+This script helps manage inventories for space engineers. Allows smooth transfer of resources enabling you to have multiple refineries.
 
 ## Installing The Script:
 To use this script add the "Moving Raw Resources To Refinarys.cs" file into your game scripts for **Space Engineers**.
