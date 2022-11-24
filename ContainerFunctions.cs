@@ -90,7 +90,7 @@ namespace IngameScript
             Dictionary<string, int> requestDict, List<IMyAssembler> assemblers)
         {
             Dictionary<string, int> itemsToAddToQueue = new Dictionary<string, int>();
-            List<MyProductionItem> productionItemsToAddToQueue = new List<MyProductionItem>();
+            IMyAssembler removeFromList = null;
 
             // Get the amount of items to add to the queue
             foreach (KeyValuePair<string, int> request in requestDict)
@@ -99,13 +99,7 @@ namespace IngameScript
                 if (requestAmount > 0)
                     itemsToAddToQueue.Add(request.Key, requestAmount / assemblers.Count);
             }
-
-            // Creates a production item queue from the requested items
-            foreach(KeyValuePair<string, int> request in itemsToAddToQueue)
-            {
-                productionItemsToAddToQueue.Add(new MyProductionItem(1, MyDefinitionId.Parse("MyObjectBuilder_BlueprintDefinition/" + request.Key), request.Value));
-            }
-
+        
             foreach(KeyValuePair<string, int> request in itemsToAddToQueue)
             {
                 Echo($"Requesting fromeach: {request.Key} = {request.Value}");
@@ -114,6 +108,9 @@ namespace IngameScript
             // If assembler not producing the item - add it to the queue
             foreach(IMyAssembler assembler in assemblers)
             {
+                if (assembler.CustomName.Contains("Survival"))
+                    removeFromList = assembler;
+
                 List<MyProductionItem> assemblerProductionQueue = new List<MyProductionItem>();
                 
                 assembler.GetQueue(assemblerProductionQueue);
@@ -141,6 +138,10 @@ namespace IngameScript
                 
                
             }
+
+            // Removes survival Kits
+            if(removeFromList != null)
+                assemblers.Remove(removeFromList);
         }
 
     }

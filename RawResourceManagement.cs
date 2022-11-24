@@ -55,6 +55,8 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(drills);
             GridTerminalSystem.GetBlocksOfType(assemblers);
 
+            
+
             sourceCargo.AddRange(cargoContainers);
             sourceCargo.AddRange(cockpits);
             sourceCargo.AddRange(connectors);
@@ -161,6 +163,7 @@ namespace IngameScript
                 }
             }
 
+            // Adds a cargo reserve for certain components
             addMissingComponentToAssemblerQueue(componentsDict, componentsRequestDict, assemblers);
 
             // Display all Raw Resources
