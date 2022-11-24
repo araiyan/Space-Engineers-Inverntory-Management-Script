@@ -29,13 +29,20 @@ namespace IngameScript
 
         List<IMyCargoContainer> cargoContainers = new List<IMyCargoContainer>();
         List<IMyRefinery> refineries = new List<IMyRefinery>();
+        List<IMyAssembler> assemblers = new List<IMyAssembler>();
         List<IMyCockpit> cockpits = new List<IMyCockpit>();
         List<IMyShipConnector> connectors = new List<IMyShipConnector>();
         List<IMyShipDrill> drills = new List<IMyShipDrill>();
-        List<IMyTerminalBlock> sourceCargo = new List<IMyTerminalBlock>();
 
-        Dictionary<string, int> rawResources = new Dictionary<string, int>();
-        IMyTextPanel display;
+        List<IMyTerminalBlock> sourceCargo = new List<IMyTerminalBlock>();
+        List<IMyTerminalBlock> componentCargo = new List<IMyTerminalBlock>();
+
+        Dictionary<string, int> rawResourcesDict = new Dictionary<string, int>();
+        Dictionary<string, int> componentsDict = new Dictionary<string, int>();
+        Dictionary<string, int> componentsRequestDict = new Dictionary<string, int>();
+        Dictionary<string, string> subIdToBlueprintsDict = new Dictionary<string, string>();
+
+        IMyTextPanel resouceMonitor, componentMonitor;
 
         public Program()
         {
@@ -46,22 +53,68 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(cockpits);
             GridTerminalSystem.GetBlocksOfType(connectors);
             GridTerminalSystem.GetBlocksOfType(drills);
+            GridTerminalSystem.GetBlocksOfType(assemblers);
 
             sourceCargo.AddRange(cargoContainers);
             sourceCargo.AddRange(cockpits);
             sourceCargo.AddRange(connectors);
             sourceCargo.AddRange(drills);
 
-            display = GridTerminalSystem.GetBlockWithName("Resource Monitor") as IMyTextPanel;
-            display.FontSize = 2.5f;
-            display.ContentType = ContentType.TEXT_AND_IMAGE;
+            componentCargo.AddRange(cargoContainers);
+            componentCargo.AddRange(connectors);
+
+            resouceMonitor = GridTerminalSystem.GetBlockWithName("Resource Monitor") as IMyTextPanel;
+            resouceMonitor.FontSize = 2.5f;
+            resouceMonitor.ContentType = ContentType.TEXT_AND_IMAGE;
+
+            componentMonitor = GridTerminalSystem.GetBlockWithName("Component Monitor") as IMyTextPanel;
+            componentMonitor.FontSize = 1;
+            componentMonitor.ContentType = ContentType.TEXT_AND_IMAGE;
+
+            subIdToBlueprintsDict = new Dictionary<string, string>()
+            {
+                { "Computer",  "MyObjectBuilder_BlueprintDefinition/ComputerComponent"},
+                { "Construction", "MyObjectBuilder_BlueprintDefinition/ConstructionComponent" },
+                { "Display", "MyObjectBuilder_BlueprintDefinition/Display" },
+                { "Girder", "MyObjectBuilder_BlueprintDefinition/GirderComponent" },
+                { "InteriorPlate", "MyObjectBuilder_BlueprintDefinition/InteriorPlate" },
+                { "LargeTube", "MyObjectBuilder_BlueprintDefinition/LargeTube" },
+                { "MetalGrid", "MyObjectBuilder_BlueprintDefinition/MetalGrid" },
+                { "Motor", "MyObjectBuilder_BlueprintDefinition/MotorComponent"  },
+                { "PowerCell", "MyObjectBuilder_BlueprintDefinition/PowerCell" },
+                { "SmallTube", "MyObjectBuilder_BlueprintDefinition/SmallTube" },
+                { "SteelPlate", "MyObjectBuilder_BlueprintDefinition/SteelPlate" }
+            };
+
+            // Change the value of this dictionary to change the
+            // amount of reserve components you would like to have
+            // Just make sure to add the blueprint of your
+            // component to the dictionary above
+            componentsRequestDict = new Dictionary<string, int>()
+            {
+                { "Computer", 150 },
+                { "Construction", 200 },
+                { "Display", 20 },
+                { "Girder", 50 },
+                { "InteriorPlate", 200 },
+                { "LargeTube", 10 },
+                { "MetalGrid", 10 },
+                { "Motor", 50  },
+                { "PowerCell", 100 },
+                { "SmallTube", 50 },
+                { "SteelPlate", 400 }
+            };
         }
 
         public void Main(string argument, UpdateType updateSource)
         {   
             // Looks through cargo containers to find Ores
-            fillDictWithRawResources(sourceCargo, ref rawResources);
-            fillDictWithRawResources(refineries.ConvertAll(x=>(IMyTerminalBlock)x), ref rawResources);
+            fillDictWithResources(sourceCargo, ref rawResourcesDict, "Ore");
+            fillDictWithResources(refineries.ConvertAll(x=>(IMyTerminalBlock)x), ref rawResourcesDict, "Ore");
+
+            // Looks through cargo containers to find all components
+            fillDictWithResources(componentCargo, ref componentsDict, "Component");
+            fillDictWithResourcesTwoInventory(assemblers.ConvertAll(x=>(IMyTerminalBlock)x), ref componentsDict, "Component", 1);
 
             //Move the raw resrouces to Refineries
             foreach (var cargo in sourceCargo)
@@ -100,7 +153,7 @@ namespace IngameScript
                 {
                     MyInventoryItem item = sourceInventory.GetItemAt(j).Value;
 
-                    int amountToObtain = (rawResources[item.Type.SubtypeId] / refineries.Count) + 1;
+                    int amountToObtain = (rawResourcesDict[item.Type.SubtypeId] / refineries.Count) + 1;
                     int amountToMove = item.Amount.ToIntSafe() - amountToObtain;
 
                     if (amountToMove > 0)
@@ -108,20 +161,21 @@ namespace IngameScript
                 }
             }
 
+            addMissingComponentToAssemblerQueue(componentsDict, componentsRequestDict, assemblers);
 
             // Display all Raw Resources
-            display.WriteText("", false);
-            foreach (string name in rawResources.Keys)
-                display.WriteText(name + ": " + rawResources[name] + "\n", true);
+            resouceMonitor.WriteText("", false);
+            foreach (string name in rawResourcesDict.Keys)
+                resouceMonitor.WriteText(name + ": " + rawResourcesDict[name] + "\n", true);
 
-            // Resets all the value of Ore
-            rawResources.Keys.ToList().ForEach(x => rawResources[x] = 0);
+            // Display all Components Resources
+            componentMonitor.WriteText("", false);
+            foreach (KeyValuePair<string, int> component in componentsDict)
+                componentMonitor.WriteText(component.Key + ": " + component.Value + "\n", true);
 
-            foreach(IMyTerminalBlock cargo in sourceCargo)
-            {
-                IMyInventory cargoInventory = cargo.GetInventory();
-                int itemCount = cargoInventory.ItemCount;
-            }
+            // Resets all the value of dicts
+            rawResourcesDict.Keys.ToList().ForEach(x => rawResourcesDict[x] = 0);
+            componentsDict.Keys.ToList().ForEach(x => componentsDict[x] = 0);
 
         }
 
